@@ -1,6 +1,8 @@
 import os
 import sqlite3
-from flask import Flask, render_template, request, jsonify
+import pandas as pd
+from io import BytesIO
+from flask import Flask, render_template, request, jsonify, send_file
 
 app = Flask(__name__)
 
@@ -41,6 +43,36 @@ def add_finance():
     conn.commit()
     conn.close()
     return jsonify({"status": "success"})
+
+@app.route('/api/get_reports', methods=['GET'])
+def get_reports():
+    conn = sqlite3.connect('pharmacy_control.db')
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT branch, staff_name, log_type, details, timestamp FROM staff_logs ORDER BY id DESC LIMIT 50")
+    staff = cursor.fetchall()
+    
+    cursor.execute("SELECT branch, trans_type, amount, category, comment, timestamp FROM finance ORDER BY id DESC LIMIT 50")
+    finance = cursor.fetchall()
+    
+    conn.close()
+    return jsonify({"staff": staff, "finance": finance})
+
+@app.route('/api/export_excel', methods=['GET'])
+def export_excel():
+    conn = sqlite3.connect('pharmacy_control.db')
+    
+    df_staff = pd.read_sql_query("SELECT branch AS 'Филиал', staff_name AS 'Сотрудник', log_type AS 'Тип', details AS 'Детали', timestamp AS 'Дата' FROM staff_logs", conn)
+    df_finance = pd.read_sql_query("SELECT branch AS 'Филиал', trans_type AS 'Тип', amount AS 'Сумма', category AS 'Категория', comment AS 'Комментарий', timestamp AS 'Дата' FROM finance", conn)
+    conn.close()
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_staff.to_excel(writer, sheet_name='Дисциплина', index=False)
+        df_finance.to_excel(writer, sheet_name='Финансы', index=False)
+        
+    output.seek(0)
+    return send_file(output, download_name="pharmacy_report.xlsx", as_attachment=True)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
