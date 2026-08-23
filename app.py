@@ -1,16 +1,15 @@
 import os
 import io
 import sqlite3
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify
 import telebot
 from telebot import types
-import pandas as pd
+import openpyxl
 
 TOKEN = os.environ.get('BOT_TOKEN')
-bot = telebot.TeleBot(TOKEN)
+bot = telebot.TeleBot(TOKEN) if TOKEN else None
 app = Flask(__name__)
 
-# Инициализация БД
 def init_db():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
@@ -46,12 +45,12 @@ def index():
 
 @app.route('/api/add_staff_log', methods=['POST'])
 def add_staff_log():
-    data = request.json
+    data = request.json or {}
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     cursor.execute(
         'INSERT INTO staff_logs (branch, staff_name, log_type, details) VALUES (?, ?, ?, ?)',
-        (data['branch'], data['staff_name'], data['log_type'], data['details'])
+        (data.get('branch'), data.get('staff_name'), data.get('log_type'), data.get('details'))
     )
     conn.commit()
     conn.close()
@@ -59,12 +58,12 @@ def add_staff_log():
 
 @app.route('/api/add_finance', methods=['POST'])
 def add_finance():
-    data = request.json
+    data = request.json or {}
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
     cursor.execute(
         'INSERT INTO finance_logs (branch, trans_type, amount, category, comment) VALUES (?, ?, ?, ?, ?)',
-        (data['branch'], data['trans_type'], data['amount'], data['category'], data['comment'])
+        (data.get('branch'), data.get('trans_type'), data.get('amount'), data.get('category'), data.get('comment'))
     )
     conn.commit()
     conn.close()
@@ -74,50 +73,69 @@ def add_finance():
 def get_reports():
     conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT branch, staff_name, log_type, details, timestamp FROM staff_logs ORDER BY id DESC LIMIT 10')
+    cursor.execute('SELECT branch, staff_name, log_type, details, timestamp FROM staff_logs ORDER BY id DESC LIMIT 15')
     staff = cursor.fetchall()
-    cursor.execute('SELECT branch, trans_type, amount, category, comment, timestamp FROM finance_logs ORDER BY id DESC LIMIT 10')
+    cursor.execute('SELECT branch, trans_type, amount, category, comment, timestamp FROM finance_logs ORDER BY id DESC LIMIT 15')
     finance = cursor.fetchall()
     conn.close()
     return jsonify({'staff': staff, 'finance': finance})
 
-# Эндпоинт отправки Excel в чат Telegram
 @app.route('/api/send_excel_telegram', methods=['POST'])
 def send_excel_telegram():
-    data = request.json
+    data = request.json or {}
     chat_id = data.get('chat_id')
     
-    if not chat_id:
-        return jsonify({'status': 'error', 'message': 'Chat ID missing'}), 400
+    if not chat_id or not bot:
+        return jsonify({'status': 'error', 'message': 'Chat ID or Bot instance missing'}), 400
 
     conn = sqlite3.connect('database.db')
-    df_staff = pd.read_sql_query('SELECT timestamp as "Дата", branch as "Филиал", staff_name as "Сотрудник", log_type as "Тип", details as "Детали" FROM staff_logs ORDER BY id DESC', conn)
-    df_finance = pd.read_sql_query('SELECT timestamp as "Дата", branch as "Филиал", trans_type as "Тип", amount as "Сумма", category as "Категория", comment as "Комментарий" FROM finance_logs ORDER BY id DESC', conn)
+    cursor = conn.cursor()
+
+    cursor.execute('SELECT timestamp, branch, staff_name, log_type, details FROM staff_logs ORDER BY id DESC')
+    staff_rows = cursor.fetchall()
+
+    cursor.execute('SELECT timestamp, branch, trans_type, amount, category, comment FROM finance_logs ORDER BY id DESC')
+    finance_rows = cursor.fetchall()
     conn.close()
 
+    wb = openpyxl.Workbook()
+    
+    # Вкладка 1: Дисциплина
+    ws1 = wb.active
+    ws1.title = "Дисциплина и Кадры"
+    ws1.append(["Дата и Время", "Филиал №", "Сотрудник", "Тип записи", "Детали"])
+    for row in staff_rows:
+        ws1.append(list(row))
+
+    # Вкладка 2: Финансы
+    ws2 = wb.create_sheet(title="Финансы и Акции")
+    ws2.append(["Дата и Время", "Филиал №", "Тип операции", "Сумма", "Категория", "Комментарий"])
+    for row in finance_rows:
+        ws2.append(list(row))
+
     output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df_staff.to_excel(writer, sheet_name='Дисциплина и Кадры', index=False)
-        df_finance.to_excel(writer, sheet_name='Финансы и Акции', index=False)
+    wb.save(output)
     output.seek(0)
 
-    # Отправляем документ пользователю в чат
-    bot.send_document(
-        chat_id,
-        ('PharmApp_Report.xlsx', output.getvalue()),
-        caption="📊 **Ваш актуальный Excel отчёт**"
-    )
-    return jsonify({'status': 'ok'})
+    try:
+        bot.send_document(
+            chat_id,
+            ('Pharmacy_Report.xlsx', output.getvalue()),
+            caption="📊 **Ваш актуальный Excel отчёт**"
+        )
+        return jsonify({'status': 'ok'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
-# Webhook для бота
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    json_str = request.get_data().decode('UTF-8')
-    update = telebot.types.Update.de_json(json_str)
-    bot.process_new_updates([update])
+    if bot:
+        json_str = request.get_data().decode('UTF-8')
+        update = telebot.types.Update.de_json(json_str)
+        bot.process_new_updates([update])
     return 'ok', 200
 
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['start']) if bot else None
 def send_welcome(message):
     web_app_url = os.environ.get('WEB_APP_URL', 'https://pharmacy-app.onrender.com')
     markup = types.InlineKeyboardMarkup()
