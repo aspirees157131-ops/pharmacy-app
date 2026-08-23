@@ -6,73 +6,138 @@
     <title>Панель Управления</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f4f4f9; padding: 15px; margin: 0; color: #333; }
+        body { font-family: -apple-system, sans-serif; background: #f4f4f9; padding: 10px; margin: 0; color: #333; }
+        .nav { display: flex; gap: 5px; margin-bottom: 15px; }
+        .nav button { flex: 1; padding: 10px; border: none; background: #e0e0e0; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .nav button.active { background: #0088cc; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
         .card { background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-        h2 { font-size: 18px; margin-top: 0; color: #0088cc; }
+        h2 { font-size: 16px; margin-top: 0; color: #0088cc; }
         label { font-size: 12px; color: #666; display: block; margin-top: 8px; }
         input, select, textarea { width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
-        button { width: 100%; background: #0088cc; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 16px; margin-top: 12px; font-weight: bold; }
+        .btn-submit { width: 100%; background: #0088cc; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 15px; margin-top: 12px; font-weight: bold; }
+        .btn-excel { width: 100%; background: #27ae60; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: bold; margin-bottom: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        th { background: #f0f0f0; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h2>👥 Кадры и Дисциплина</h2>
-        <label>Филиал №</label>
-        <select id="staff_branch">
-            <option value="1">Филиал 1</option><option value="2">Филиал 2</option>
-            <option value="3">Филиал 3</option><option value="4">Филиал 4</option>
-            <option value="5">Филиал 5</option><option value="6">Филиал 6</option>
-            <option value="7">Филиал 7</option><option value="8">Филиал 8</option>
-        </select>
-        
-        <label>Сотрудник</label>
-        <input type="text" id="staff_name" placeholder="ФИО сотрудника">
-        
-        <label>Тип записи</label>
-        <select id="log_type">
-            <option value="Косяк/Нарушение">Косяк / Нарушение</option>
-            <option value="Опоздание">Опоздание</option>
-            <option value="Уход раньше">Уход раньше</option>
-        </select>
-        
-        <label>Детали / Описание</label>
-        <textarea id="staff_details" rows="2" placeholder="В чем косяк или на сколько опоздал..."></textarea>
-        
-        <button onclick="sendStaffLog()">Зафиксировать</button>
+    <div class="nav">
+        <button id="btn-form" class="active" onclick="switchTab('form')">📝 Ввод</button>
+        <button id="btn-report" onclick="switchTab('report')">📊 Отчеты</button>
     </div>
 
-    <div class="card">
-        <h2>💰 Финансы и Акционные</h2>
-        <label>Филиал №</label>
-        <select id="fin_branch">
-            <option value="1">Филиал 1</option><option value="2">Филиал 2</option>
-            <option value="3">Филиал 3</option><option value="4">Филиал 4</option>
-            <option value="5">Филиал 5</option><option value="6">Филиал 6</option>
-            <option value="7">Филиал 7</option><option value="8">Филиал 8</option>
-        </select>
+    <!-- Вкладка Ввода -->
+    <div id="tab-form" class="tab-content active">
+        <div class="card">
+            <h2>👥 Кадры и Дисциплина</h2>
+            <label>Филиал №</label>
+            <select id="staff_branch">
+                <option value="1">Филиал 1</option><option value="2">Филиал 2</option>
+                <option value="3">Филиал 3</option><option value="4">Филиал 4</option>
+                <option value="5">Филиал 5</option><option value="6">Филиал 6</option>
+                <option value="7">Филиал 7</option><option value="8">Филиал 8</option>
+            </select>
+            <label>Сотрудник</label>
+            <input type="text" id="staff_name" placeholder="ФИО сотрудника">
+            <label>Тип записи</label>
+            <select id="log_type">
+                <option value="Косяк/Нарушение">Косяк / Нарушение</option>
+                <option value="Опоздание">Опоздание</option>
+                <option value="Уход раньше">Уход раньше</option>
+            </select>
+            <label>Детали / Описание</label>
+            <textarea id="staff_details" rows="2" placeholder="Описание..."></textarea>
+            <button class="btn-submit" onclick="sendStaffLog()">Зафиксировать</button>
+        </div>
+
+        <div class="card">
+            <h2>💰 Финансы и Акционные</h2>
+            <label>Филиал №</label>
+            <select id="fin_branch">
+                <option value="1">Филиал 1</option><option value="2">Филиал 2</option>
+                <option value="3">Филиал 3</option><option value="4">Филиал 4</option>
+                <option value="5">Филиал 5</option><option value="6">Филиал 6</option>
+                <option value="7">Филиал 7</option><option value="8">Филиал 8</option>
+            </select>
+            <label>Тип операции</label>
+            <select id="trans_type">
+                <option value="Приход (Акция)">Приход (Акционные)</option>
+                <option value="Расход">Расход</option>
+            </select>
+            <label>Сумма</label>
+            <input type="number" id="amount" placeholder="0.00">
+            <label>Категория / Источник</label>
+            <input type="text" id="category" placeholder="Бренд / Хоз.нужды">
+            <label>Комментарий</label>
+            <input type="text" id="fin_comment" placeholder="Детали...">
+            <button class="btn-submit" onclick="sendFinance()">Сохранить транзакцию</button>
+        </div>
+    </div>
+
+    <!-- Вкладка Отчетов -->
+    <div id="tab-report" class="tab-content">
+        <button class="btn-excel" onclick="window.location.href='/api/export_excel'">📥 Скачать Excel отчёт</button>
         
-        <label>Тип операции</label>
-        <select id="trans_type">
-            <option value="Приход (Акция)">Приход (Акционные деньги)</option>
-            <option value="Расход">Расход</option>
-        </select>
-        
-        <label>Сумма</label>
-        <input type="number" id="amount" placeholder="0.00">
-        
-        <label>Категория / Источник</label>
-        <input type="text" id="category" placeholder="Например: Фарма-бренд / Хоз.нужды">
-        
-        <label>Комментарий</label>
-        <input type="text" id="fin_comment" placeholder="Детали расхода или акции">
-        
-        <button onclick="sendFinance()">Сохранить транзакцию</button>
+        <div class="card">
+            <h2>Последние нарушения</h2>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead><tr><th>Фил.</th><th>Кто</th><th>Тип</th><th>Детали</th></tr></thead>
+                    <tbody id="staff-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Последние финансы</h2>
+            <div style="overflow-x:auto;">
+                <table>
+                    <thead><tr><th>Фил.</th><th>Тип</th><th>Сумма</th><th>Кат.</th></tr></thead>
+                    <tbody id="finance-table"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script>
         const tg = window.Telegram.WebApp;
         tg.expand();
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav button').forEach(el => el.classList.remove('active'));
+            
+            if(tab === 'form') {
+                document.getElementById('tab-form').classList.add('active');
+                document.getElementById('btn-form').classList.add('active');
+            } else {
+                document.getElementById('tab-report').classList.add('active');
+                document.getElementById('btn-report').classList.add('active');
+                loadReports();
+            }
+        }
+
+        function loadReports() {
+            fetch('/api/get_reports')
+                .then(res => res.json())
+                .then(data => {
+                    let staffHtml = '';
+                    data.staff.forEach(r => {
+                        staffHtml += `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`;
+                    });
+                    document.getElementById('staff-table').innerHTML = staffHtml;
+
+                    let finHtml = '';
+                    data.finance.forEach(r => {
+                        finHtml += `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`;
+                    });
+                    document.getElementById('finance-table').innerHTML = finHtml;
+                });
+        }
 
         function sendStaffLog() {
             const data = {
@@ -86,7 +151,7 @@
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
             }).then(() => {
-                tg.showAlert('Запись по сотруднику сохранена!');
+                tg.showAlert('Запись сохранена!');
                 document.getElementById('staff_details').value = '';
             });
         }
