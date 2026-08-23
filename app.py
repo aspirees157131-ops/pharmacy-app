@@ -8,6 +8,7 @@ import openpyxl
 
 TOKEN = os.environ.get('BOT_TOKEN')
 bot = telebot.TeleBot(TOKEN) if TOKEN else None
+
 app = Flask(__name__)
 
 def init_db():
@@ -127,20 +128,13 @@ def send_excel_telegram():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    if bot:
-        json_str = request.get_data().decode('UTF-8')
-        update = telebot.types.Update.de_json(json_str)
-        bot.process_new_updates([update])
-    return 'ok', 200
-
-@bot.message_handler(commands=['start']) if bot else None
-def send_welcome(message):
-    web_app_url = os.environ.get('WEB_APP_URL', 'https://pharmacy-app.onrender.com')
-    markup = types.InlineKeyboardMarkup()
-    markup.add(types.InlineKeyboardButton("Панель управления", web_app_url=types.WebAppInfo(url=web_app_url)))
-    bot.reply_to(message, "Привет! Нажмите кнопку ниже для открытия панели управления:", reply_markup=markup)
+if bot:
+    @bot.message_handler(commands=['start'])
+    def send_welcome(message):
+        web_app_url = os.environ.get('WEB_APP_URL', 'https://pharmacy-app-y461.onrender.com')
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("Панель управления", web_app_url=types.WebAppInfo(url=web_app_url)))
+        bot.reply_to(message, "Привет! Нажмите кнопку ниже для открытия панели управления:", reply_markup=markup)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
