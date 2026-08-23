@@ -2,33 +2,40 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Панель Управления</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f4f4f9; padding: 10px; margin: 0; color: #333; }
-        .nav { display: flex; gap: 5px; margin-bottom: 15px; }
-        .nav button { flex: 1; padding: 10px; border: none; background: #e0e0e0; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f4f9; padding: 12px; margin: 0; color: #333; }
+        .nav { display: flex; gap: 8px; margin-bottom: 15px; }
+        .nav button { flex: 1; padding: 12px; border: none; background: #e0e0e0; border-radius: 10px; font-weight: bold; font-size: 14px; cursor: pointer; }
         .nav button.active { background: #0088cc; color: white; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        .card { background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .card { background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
         h2 { font-size: 16px; margin-top: 0; color: #0088cc; }
-        label { font-size: 12px; color: #666; display: block; margin-top: 8px; }
-        input, select, textarea { width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
-        .btn-submit { width: 100%; background: #0088cc; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 15px; margin-top: 12px; font-weight: bold; }
-        .btn-excel { width: 100%; background: #27ae60; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: bold; margin-bottom: 15px; cursor: pointer; }
+        label { font-size: 13px; color: #555; display: block; margin-top: 10px; font-weight: 500; }
+        input, select, textarea { width: 100%; padding: 12px; margin-top: 5px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; background: #fff; }
+        button.btn-submit { width: 100%; background: #0088cc; color: #fff; border: none; padding: 14px; border-radius: 10px; font-size: 16px; margin-top: 15px; font-weight: bold; cursor: pointer; }
+        button.btn-excel { width: 100%; background: #27ae60; color: #fff; border: none; padding: 14px; border-radius: 10px; font-size: 15px; font-weight: bold; margin-bottom: 15px; cursor: pointer; }
+        button:active { opacity: 0.7; transform: scale(0.98); }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
         th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
         th { background: #f0f0f0; }
+        #status-msg { margin-top: 10px; padding: 10px; border-radius: 8px; font-size: 13px; display: none; text-align: center; font-weight: bold; }
+        .status-success { background: #d4edda; color: #155724; }
+        .status-error { background: #f8d7da; color: #721c24; }
     </style>
 </head>
 <body>
 
     <div class="nav">
-        <button id="btn-form" class="active" onclick="switchTab('form')">📝 Ввод</button>
-        <button id="btn-report" onclick="switchTab('report')">📊 Отчеты</button>
+        <button id="btn-form" class="active" type="button" onclick="switchTab('form')">📝 Ввод</button>
+        <button id="btn-report" type="button" onclick="switchTab('report')">📊 Отчеты</button>
     </div>
+
+    <div id="status-msg"></div>
 
     <!-- Вкладка Ввода -->
     <div id="tab-form" class="tab-content active">
@@ -41,17 +48,21 @@
                 <option value="5">Филиал 5</option><option value="6">Филиал 6</option>
                 <option value="7">Филиал 7</option><option value="8">Филиал 8</option>
             </select>
+
             <label>Сотрудник</label>
             <input type="text" id="staff_name" placeholder="ФИО сотрудника">
+
             <label>Тип записи</label>
             <select id="log_type">
                 <option value="Косяк/Нарушение">Косяк / Нарушение</option>
                 <option value="Опоздание">Опоздание</option>
                 <option value="Уход раньше">Уход раньше</option>
             </select>
+
             <label>Детали / Описание</label>
             <textarea id="staff_details" rows="2" placeholder="Описание..."></textarea>
-            <button class="btn-submit" onclick="sendStaffLog()">Зафиксировать</button>
+
+            <button class="btn-submit" type="button" onclick="sendStaffLog()">Зафиксировать</button>
         </div>
 
         <div class="card">
@@ -63,25 +74,30 @@
                 <option value="5">Филиал 5</option><option value="6">Филиал 6</option>
                 <option value="7">Филиал 7</option><option value="8">Филиал 8</option>
             </select>
+
             <label>Тип операции</label>
             <select id="trans_type">
                 <option value="Приход (Акция)">Приход (Акционные)</option>
                 <option value="Расход">Расход</option>
             </select>
+
             <label>Сумма</label>
             <input type="number" id="amount" placeholder="0.00">
+
             <label>Категория / Источник</label>
             <input type="text" id="category" placeholder="Бренд / Хоз.нужды">
+
             <label>Комментарий</label>
             <input type="text" id="fin_comment" placeholder="Детали...">
-            <button class="btn-submit" onclick="sendFinance()">Сохранить транзакцию</button>
+
+            <button class="btn-submit" type="button" onclick="sendFinance()">Сохранить транзакцию</button>
         </div>
     </div>
 
     <!-- Вкладка Отчетов -->
     <div id="tab-report" class="tab-content">
-        <button class="btn-excel" onclick="sendExcelToTelegram()">📩 Отправить Excel в чат Telegram</button>
-        
+        <button class="btn-excel" type="button" onclick="sendExcelToTelegram()">📩 Отправить Excel в чат Telegram</button>
+
         <div class="card">
             <h2>Последние нарушения</h2>
             <div style="overflow-x:auto;">
@@ -104,14 +120,28 @@
     </div>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
+        const tg = window.Telegram ? window.Telegram.WebApp : null;
+        if (tg) {
+            tg.expand();
+            tg.ready();
+        }
+
+        function showMessage(text, isError = false) {
+            const msgBox = document.getElementById('status-msg');
+            msgBox.innerText = text;
+            msgBox.className = isError ? 'status-error' : 'status-success';
+            msgBox.style.display = 'block';
+            setTimeout(() => { msgBox.style.display = 'none'; }, 4000);
+            if (tg && tg.showAlert) {
+                tg.showAlert(text);
+            }
+        }
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
             document.querySelectorAll('.nav button').forEach(el => el.classList.remove('active'));
-            
-            if(tab === 'form') {
+
+            if (tab === 'form') {
                 document.getElementById('tab-form').classList.add('active');
                 document.getElementById('btn-form').classList.add('active');
             } else {
@@ -126,23 +156,28 @@
                 .then(res => res.json())
                 .then(data => {
                     let staffHtml = '';
-                    data.staff.forEach(r => {
-                        staffHtml += `<tr><td>${r[4]}</td><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`;
-                    });
+                    if (data.staff) {
+                        data.staff.forEach(r => {
+                            staffHtml += `<tr><td>${r[4] || ''}</td><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`;
+                        });
+                    }
                     document.getElementById('staff-table').innerHTML = staffHtml;
 
                     let finHtml = '';
-                    data.finance.forEach(r => {
-                        finHtml += `<tr><td>${r[5]}</td><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`;
-                    });
+                    if (data.finance) {
+                        data.finance.forEach(r => {
+                            finHtml += `<tr><td>${r[5] || ''}</td><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`;
+                        });
+                    }
                     document.getElementById('finance-table').innerHTML = finHtml;
-                });
+                })
+                .catch(err => showMessage("Ошибка загрузки отчетов: " + err, true));
         }
 
         function sendExcelToTelegram() {
-            const chatId = tg.initDataUnsafe?.user?.id;
-            if(!chatId) {
-                tg.showAlert("Ошибка: Не удалось определить ваш Telegram ID.");
+            const chatId = tg?.initDataUnsafe?.user?.id;
+            if (!chatId) {
+                showMessage("Ошибка: Не удалось определить ваш Telegram ID (запустите через бота)", true);
                 return;
             }
             fetch('/api/send_excel_telegram', {
@@ -152,12 +187,13 @@
             })
             .then(res => res.json())
             .then(data => {
-                if(data.status === 'ok') {
-                    tg.showAlert("✅ Отчёт успешно отправлен вам в чат с ботом!");
+                if (data.status === 'ok') {
+                    showMessage("✅ Отчёт успешно отправлен в ваш чат с ботом!");
                 } else {
-                    tg.showAlert("Ошибка при отправке файла.");
+                    showMessage("Ошибка при отправке файла: " + (data.message || ''), true);
                 }
-            });
+            })
+            .catch(err => showMessage("Ошибка запроса: " + err, true));
         }
 
         function sendStaffLog() {
@@ -171,10 +207,13 @@
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
-            }).then(() => {
-                tg.showAlert('Запись сохранена!');
+            })
+            .then(res => res.json())
+            .then(() => {
+                showMessage('Запись нарушений сохранена!');
                 document.getElementById('staff_details').value = '';
-            });
+            })
+            .catch(err => showMessage("Ошибка сохранения: " + err, true));
         }
 
         function sendFinance() {
@@ -189,11 +228,14 @@
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(data)
-            }).then(() => {
-                tg.showAlert('Финансовая запись сохранена!');
+            })
+            .then(res => res.json())
+            .then(() => {
+                showMessage('Финансовая запись сохранена!');
                 document.getElementById('amount').value = '';
                 document.getElementById('fin_comment').value = '';
-            });
+            })
+            .catch(err => showMessage("Ошибка сохранения: " + err, true));
         }
     </script>
 </body>
