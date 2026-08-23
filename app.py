@@ -1,18 +1,40 @@
 import os
+import io
 import sqlite3
-import pandas as pd
-from io import BytesIO
 from flask import Flask, render_template, request, jsonify, send_file
+import telebot
+from telebot import types
+import pandas as pd
 
+TOKEN = os.environ.get('BOT_TOKEN')
+bot = telebot.TeleBot(TOKEN)
 app = Flask(__name__)
 
+# Инициализация БД
 def init_db():
-    conn = sqlite3.connect('pharmacy_control.db')
+    conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS staff_logs 
-                      (id INTEGER PRIMARY KEY, branch INTEGER, staff_name TEXT, log_type TEXT, details TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    cursor.execute('''CREATE TABLE IF NOT EXISTS finance 
-                      (id INTEGER PRIMARY KEY, branch INTEGER, trans_type TEXT, amount REAL, category TEXT, comment TEXT, timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS staff_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            branch INTEGER,
+            staff_name TEXT,
+            log_type TEXT,
+            details TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS finance_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            branch INTEGER,
+            trans_type TEXT,
+            amount REAL,
+            category TEXT,
+            comment TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -25,55 +47,82 @@ def index():
 @app.route('/api/add_staff_log', methods=['POST'])
 def add_staff_log():
     data = request.json
-    conn = sqlite3.connect('pharmacy_control.db')
+    conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO staff_logs (branch, staff_name, log_type, details) VALUES (?, ?, ?, ?)",
-                   (data['branch'], data['staff_name'], data['log_type'], data['details']))
+    cursor.execute(
+        'INSERT INTO staff_logs (branch, staff_name, log_type, details) VALUES (?, ?, ?, ?)',
+        (data['branch'], data['staff_name'], data['log_type'], data['details'])
+    )
     conn.commit()
     conn.close()
-    return jsonify({"status": "success"})
+    return jsonify({'status': 'ok'})
 
 @app.route('/api/add_finance', methods=['POST'])
 def add_finance():
     data = request.json
-    conn = sqlite3.connect('pharmacy_control.db')
+    conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO finance (branch, trans_type, amount, category, comment) VALUES (?, ?, ?, ?, ?)",
-                   (data['branch'], data['trans_type'], data['amount'], data['category'], data['comment']))
+    cursor.execute(
+        'INSERT INTO finance_logs (branch, trans_type, amount, category, comment) VALUES (?, ?, ?, ?, ?)',
+        (data['branch'], data['trans_type'], data['amount'], data['category'], data['comment'])
+    )
     conn.commit()
     conn.close()
-    return jsonify({"status": "success"})
+    return jsonify({'status': 'ok'})
 
 @app.route('/api/get_reports', methods=['GET'])
 def get_reports():
-    conn = sqlite3.connect('pharmacy_control.db')
+    conn = sqlite3.connect('database.db')
     cursor = conn.cursor()
-    
-    cursor.execute("SELECT branch, staff_name, log_type, details, timestamp FROM staff_logs ORDER BY id DESC LIMIT 50")
+    cursor.execute('SELECT branch, staff_name, log_type, details, timestamp FROM staff_logs ORDER BY id DESC LIMIT 10')
     staff = cursor.fetchall()
-    
-    cursor.execute("SELECT branch, trans_type, amount, category, comment, timestamp FROM finance ORDER BY id DESC LIMIT 50")
+    cursor.execute('SELECT branch, trans_type, amount, category, comment, timestamp FROM finance_logs ORDER BY id DESC LIMIT 10')
     finance = cursor.fetchall()
-    
     conn.close()
-    return jsonify({"staff": staff, "finance": finance})
+    return jsonify({'staff': staff, 'finance': finance})
 
-@app.route('/api/export_excel', methods=['GET'])
-def export_excel():
-    conn = sqlite3.connect('pharmacy_control.db')
+# Эндпоинт отправки Excel в чат Telegram
+@app.route('/api/send_excel_telegram', methods=['POST'])
+def send_excel_telegram():
+    data = request.json
+    chat_id = data.get('chat_id')
     
-    df_staff = pd.read_sql_query("SELECT branch AS 'Филиал', staff_name AS 'Сотрудник', log_type AS 'Тип', details AS 'Детали', timestamp AS 'Дата' FROM staff_logs", conn)
-    df_finance = pd.read_sql_query("SELECT branch AS 'Филиал', trans_type AS 'Тип', amount AS 'Сумма', category AS 'Категория', comment AS 'Комментарий', timestamp AS 'Дата' FROM finance", conn)
+    if not chat_id:
+        return jsonify({'status': 'error', 'message': 'Chat ID missing'}), 400
+
+    conn = sqlite3.connect('database.db')
+    df_staff = pd.read_sql_query('SELECT timestamp as "Дата", branch as "Филиал", staff_name as "Сотрудник", log_type as "Тип", details as "Детали" FROM staff_logs ORDER BY id DESC', conn)
+    df_finance = pd.read_sql_query('SELECT timestamp as "Дата", branch as "Филиал", trans_type as "Тип", amount as "Сумма", category as "Категория", comment as "Комментарий" FROM finance_logs ORDER BY id DESC', conn)
     conn.close()
 
-    output = BytesIO()
+    output = io.BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df_staff.to_excel(writer, sheet_name='Дисциплина', index=False)
-        df_finance.to_excel(writer, sheet_name='Финансы', index=False)
-        
+        df_staff.to_excel(writer, sheet_name='Дисциплина и Кадры', index=False)
+        df_finance.to_excel(writer, sheet_name='Финансы и Акции', index=False)
     output.seek(0)
-    return send_file(output, download_name="pharmacy_report.xlsx", as_attachment=True)
+
+    # Отправляем документ пользователю в чат
+    bot.send_document(
+        chat_id,
+        ('PharmApp_Report.xlsx', output.getvalue()),
+        caption="📊 **Ваш актуальный Excel отчёт**"
+    )
+    return jsonify({'status': 'ok'})
+
+# Webhook для бота
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    json_str = request.get_data().decode('UTF-8')
+    update = telebot.types.Update.de_json(json_str)
+    bot.process_new_updates([update])
+    return 'ok', 200
+
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    web_app_url = os.environ.get('WEB_APP_URL', 'https://pharmacy-app.onrender.com')
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("Панель управления", web_app_url=types.WebAppInfo(url=web_app_url)))
+    bot.reply_to(message, "Привет! Нажмите кнопку ниже для открытия панели управления:", reply_markup=markup)
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=5000)
