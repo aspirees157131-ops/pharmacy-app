@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель Управления</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #f4f4f9; padding: 15px; margin: 0; color: #333; }
+        .card { background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        h2 { font-size: 18px; margin-top: 0; color: #0088cc; }
+        label { font-size: 12px; color: #666; display: block; margin-top: 8px; }
+        input, select, textarea { width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; }
+        button { width: 100%; background: #0088cc; color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 16px; margin-top: 12px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>👥 Кадры и Дисциплина</h2>
+        <label>Филиал №</label>
+        <select id="staff_branch">
+            <option value="1">Филиал 1</option><option value="2">Филиал 2</option>
+            <option value="3">Филиал 3</option><option value="4">Филиал 4</option>
+            <option value="5">Филиал 5</option><option value="6">Филиал 6</option>
+            <option value="7">Филиал 7</option><option value="8">Филиал 8</option>
+        </select>
+        
+        <label>Сотрудник</label>
+        <input type="text" id="staff_name" placeholder="ФИО сотрудника">
+        
+        <label>Тип записи</label>
+        <select id="log_type">
+            <option value="Косяк/Нарушение">Косяк / Нарушение</option>
+            <option value="Опоздание">Опоздание</option>
+            <option value="Уход раньше">Уход раньше</option>
+        </select>
+        
+        <label>Детали / Описание</label>
+        <textarea id="staff_details" rows="2" placeholder="В чем косяк или на сколько опоздал..."></textarea>
+        
+        <button onclick="sendStaffLog()">Зафиксировать</button>
+    </div>
+
+    <div class="card">
+        <h2>💰 Финансы и Акционные</h2>
+        <label>Филиал №</label>
+        <select id="fin_branch">
+            <option value="1">Филиал 1</option><option value="2">Филиал 2</option>
+            <option value="3">Филиал 3</option><option value="4">Филиал 4</option>
+            <option value="5">Филиал 5</option><option value="6">Филиал 6</option>
+            <option value="7">Филиал 7</option><option value="8">Филиал 8</option>
+        </select>
+        
+        <label>Тип операции</label>
+        <select id="trans_type">
+            <option value="Приход (Акция)">Приход (Акционные деньги)</option>
+            <option value="Расход">Расход</option>
+        </select>
+        
+        <label>Сумма</label>
+        <input type="number" id="amount" placeholder="0.00">
+        
+        <label>Категория / Источник</label>
+        <input type="text" id="category" placeholder="Например: Фарма-бренд / Хоз.нужды">
+        
+        <label>Комментарий</label>
+        <input type="text" id="fin_comment" placeholder="Детали расхода или акции">
+        
+        <button onclick="sendFinance()">Сохранить транзакцию</button>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        function sendStaffLog() {
+            const data = {
+                branch: document.getElementById('staff_branch').value,
+                staff_name: document.getElementById('staff_name').value,
+                log_type: document.getElementById('log_type').value,
+                details: document.getElementById('staff_details').value
+            };
+            fetch('/api/add_staff_log', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            }).then(() => {
+                tg.showAlert('Запись по сотруднику сохранена!');
+                document.getElementById('staff_details').value = '';
+            });
+        }
+
+        function sendFinance() {
+            const data = {
+                branch: document.getElementById('fin_branch').value,
+                trans_type: document.getElementById('trans_type').value,
+                amount: document.getElementById('amount').value,
+                category: document.getElementById('category').value,
+                comment: document.getElementById('fin_comment').value
+            };
+            fetch('/api/add_finance', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            }).then(() => {
+                tg.showAlert('Финансовая запись сохранена!');
+                document.getElementById('amount').value = '';
+                document.getElementById('fin_comment').value = '';
+            });
+        }
+    </script>
+</body>
+</html>
